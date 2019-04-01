@@ -6,6 +6,8 @@ import (
 	"os"
 	"sort"
 	"text/tabwriter"
+
+	"github.com/fatih/color"
 )
 
 type tablePrinter struct {
@@ -14,6 +16,13 @@ type tablePrinter struct {
 	showUtil bool
 	w        *tabwriter.Writer
 }
+
+const (
+	formatBase    = "%-25s %25s %25s %25s %25s\n"
+	formatPod     = "%-25s %-25s %-50s %25s %25s %25s %25s\n"
+	formatUtil    = "%-25s %25s %25s %25s %25s %25s %25s\n"
+	formatPodUtil = "%-25s %-25s %-50s %25s %25s %25s %25s %25s %25s\n"
+)
 
 func (tp tablePrinter) Print() {
 	tp.w.Init(os.Stdout, 0, 8, 2, ' ', 0)
@@ -37,10 +46,18 @@ func (tp tablePrinter) Print() {
 
 func (tp *tablePrinter) printHeaders() {
 	if tp.showPods && tp.showUtil {
-		fmt.Fprintln(tp.w, "NODE\t NAMESPACE\t POD\t CPU REQUESTS \t CPU LIMITS \t CPU UTIL \t MEMORY REQUESTS \t MEMORY LIMITS \t MEMORY UTIL")
+		fmt.Fprintf(tp.w, formatPodUtil, "NODE",
+			"NAMESPACE",
+			"POD",
+			color.WhiteString("CPU REQUESTS"),
+			color.WhiteString("CPU LIMITS"),
+			color.WhiteString("CPU UTIL"),
+			color.WhiteString("MEMORY REQUESTS"),
+			color.WhiteString("MEMORY LIMITS"),
+			color.WhiteString("MEMORY UTIL"))
 
 		if len(tp.cm.nodeMetrics) > 1 {
-			fmt.Fprintf(tp.w, "* \t *\t *\t %s \t %s \t %s \t %s \t %s \t %s \n",
+			fmt.Fprintf(tp.w, formatPodUtil, "*", "*", "*",
 				tp.cm.cpu.requestString(),
 				tp.cm.cpu.limitString(),
 				tp.cm.cpu.utilString(),
@@ -51,9 +68,13 @@ func (tp *tablePrinter) printHeaders() {
 			fmt.Fprintln(tp.w, "\t\t\t\t\t\t\t\t")
 		}
 	} else if tp.showPods {
-		fmt.Fprintln(tp.w, "NODE\t NAMESPACE\t POD\t CPU REQUESTS \t CPU LIMITS \t MEMORY REQUESTS \t MEMORY LIMITS")
+		fmt.Fprintf(tp.w, formatPod, "NODE", "NAMESPACE", "POD",
+			color.WhiteString("CPU REQUESTS"),
+			color.WhiteString("CPU LIMITS"),
+			color.WhiteString("MEMORY REQUESTS"),
+			color.WhiteString("MEMORY LIMITS"))
 
-		fmt.Fprintf(tp.w, "* \t *\t *\t %s \t %s \t %s \t %s \n",
+		fmt.Fprintf(tp.w, formatPod, "*", "*", "*",
 			tp.cm.cpu.requestString(),
 			tp.cm.cpu.limitString(),
 			tp.cm.memory.requestString(),
@@ -62,9 +83,15 @@ func (tp *tablePrinter) printHeaders() {
 		fmt.Fprintln(tp.w, "\t\t\t\t\t\t")
 
 	} else if tp.showUtil {
-		fmt.Fprintln(tp.w, "NODE\t CPU REQUESTS \t CPU LIMITS \t CPU UTIL \t MEMORY REQUESTS \t MEMORY LIMITS \t MEMORY UTIL")
+		fmt.Fprintf(tp.w, formatUtil, "NODE",
+			color.WhiteString("CPU REQUESTS"),
+			color.WhiteString("CPU LIMITS"),
+			color.WhiteString("CPU UTIL"),
+			color.WhiteString("MEMORY REQUESTS"),
+			color.WhiteString("MEMORY LIMITS"),
+			color.WhiteString("MEMORY UTIL"))
 
-		fmt.Fprintf(tp.w, "* \t %s \t %s \t %s \t %s \t %s \t %s \n",
+		fmt.Fprintf(tp.w, formatUtil, "*",
 			tp.cm.cpu.requestString(),
 			tp.cm.cpu.limitString(),
 			tp.cm.cpu.utilString(),
@@ -73,10 +100,14 @@ func (tp *tablePrinter) printHeaders() {
 			tp.cm.memory.utilString())
 
 	} else {
-		fmt.Fprintln(tp.w, "NODE\t CPU REQUESTS \t CPU LIMITS \t MEMORY REQUESTS \t MEMORY LIMITS")
+		fmt.Fprintf(tp.w, formatBase, "NODE",
+			color.WhiteString("CPU REQUESTS"),
+			color.WhiteString("CPU LIMITS"),
+			color.WhiteString("MEMORY REQUESTS"),
+			color.WhiteString("MEMORY LIMITS"))
 
 		if len(tp.cm.nodeMetrics) > 1 {
-			fmt.Fprintf(tp.w, "* \t %s \t %s \t %s \t %s \n",
+			fmt.Fprintf(tp.w, formatBase, "*",
 				tp.cm.cpu.requestString(), tp.cm.cpu.limitString(),
 				tp.cm.memory.requestString(), tp.cm.memory.limitString())
 		}
@@ -94,8 +125,8 @@ func (tp *tablePrinter) printNode(name string, nm *nodeMetric) {
 	sort.Strings(podNames)
 
 	if tp.showPods && tp.showUtil {
-		fmt.Fprintf(tp.w, "%s \t *\t *\t %s \t %s \t %s \t %s \t %s \t %s \n",
-			name,
+		fmt.Fprintf(tp.w, formatPodUtil,
+			name, "*", "*",
 			nm.cpu.requestString(),
 			nm.cpu.limitString(),
 			nm.cpu.utilString(),
@@ -105,7 +136,7 @@ func (tp *tablePrinter) printNode(name string, nm *nodeMetric) {
 
 		for _, podName := range podNames {
 			pm := nm.podMetrics[podName]
-			fmt.Fprintf(tp.w, "%s \t %s \t %s \t %s \t %s \t %s \t %s \t %s \t %s \n",
+			fmt.Fprintf(tp.w, formatPodUtil,
 				name,
 				pm.namespace,
 				pm.name,
@@ -120,8 +151,8 @@ func (tp *tablePrinter) printNode(name string, nm *nodeMetric) {
 		fmt.Fprintln(tp.w, "\t\t\t\t\t\t\t\t")
 
 	} else if tp.showPods {
-		fmt.Fprintf(tp.w, "%s \t *\t *\t %s \t %s \t %s \t %s \n",
-			name,
+		fmt.Fprintf(tp.w, formatPod,
+			name, "*", "*",
 			nm.cpu.requestString(),
 			nm.cpu.limitString(),
 			nm.memory.requestString(),
@@ -129,7 +160,7 @@ func (tp *tablePrinter) printNode(name string, nm *nodeMetric) {
 
 		for _, podName := range podNames {
 			pm := nm.podMetrics[podName]
-			fmt.Fprintf(tp.w, "%s \t %s \t %s \t %s \t %s \t %s \t %s \n",
+			fmt.Fprintf(tp.w, formatPod,
 				name,
 				pm.namespace,
 				pm.name,
@@ -142,7 +173,7 @@ func (tp *tablePrinter) printNode(name string, nm *nodeMetric) {
 		fmt.Fprintln(tp.w, "\t\t\t\t\t\t")
 
 	} else if tp.showUtil {
-		fmt.Fprintf(tp.w, "%s \t %s \t %s \t %s \t %s \t %s \t %s \n",
+		fmt.Fprintf(tp.w, formatUtil,
 			name,
 			nm.cpu.requestString(),
 			nm.cpu.limitString(),
@@ -152,7 +183,7 @@ func (tp *tablePrinter) printNode(name string, nm *nodeMetric) {
 			nm.memory.utilString())
 
 	} else {
-		fmt.Fprintf(tp.w, "%s \t %s \t %s \t %s \t %s \n", name,
+		fmt.Fprintf(tp.w, formatBase, name,
 			nm.cpu.requestString(), nm.cpu.limitString(),
 			nm.memory.requestString(), nm.memory.limitString())
 	}

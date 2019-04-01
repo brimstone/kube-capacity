@@ -17,11 +17,16 @@ package capacity
 import (
 	"fmt"
 
+	"github.com/fatih/color"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	resourcehelper "k8s.io/kubernetes/pkg/kubectl/util/resource"
 	v1beta1 "k8s.io/metrics/pkg/apis/metrics/v1beta1"
 )
+
+func init() {
+	color.NoColor = false
+}
 
 type resourceMetric struct {
 	resourceType string
@@ -116,15 +121,48 @@ func (cm *clusterMetric) addNodeMetric(nm *nodeMetric) {
 }
 
 func (rm *resourceMetric) requestString() string {
-	return resourceString(rm.request, rm.allocatable, rm.resourceType)
+	// If the request is 0, that's a problem
+	// If the request is more than the limit, that's a problem
+	switch rm.resourceType {
+	case "memory":
+		if rm.request.Value() == 0 {
+			return color.RedString(resourceString(rm.request, rm.allocatable, rm.resourceType))
+		}
+		if rm.request.Value() > rm.limit.Value() && rm.limit.Value() > 0 {
+			return color.RedString(resourceString(rm.request, rm.allocatable, rm.resourceType))
+		}
+	case "cpu":
+		if rm.request.MilliValue() == 0 {
+			return color.RedString(resourceString(rm.request, rm.allocatable, rm.resourceType))
+		}
+		if rm.request.MilliValue() > rm.limit.MilliValue() && rm.limit.MilliValue() > 0 {
+			return color.RedString(resourceString(rm.request, rm.allocatable, rm.resourceType))
+		}
+	}
+	return color.WhiteString(resourceString(rm.request, rm.allocatable, rm.resourceType))
 }
 
 func (rm *resourceMetric) limitString() string {
-	return resourceString(rm.limit, rm.allocatable, rm.resourceType)
+	// If the limit is 0, that's a problem
+	if rm.limit.Value() == 0 && rm.limit.MilliValue() == 0 {
+		return color.RedString(resourceString(rm.limit, rm.allocatable, rm.resourceType))
+	}
+	return color.WhiteString(resourceString(rm.limit, rm.allocatable, rm.resourceType))
 }
 
 func (rm *resourceMetric) utilString() string {
-	return resourceString(rm.utilization, rm.allocatable, rm.resourceType)
+	switch rm.resourceType {
+	case "memory":
+		if rm.utilization.Value() > rm.request.Value() && rm.request.Value() > 0 {
+			return color.RedString(resourceString(rm.utilization, rm.allocatable, rm.resourceType))
+		}
+	case "cpu":
+		if rm.utilization.MilliValue() > rm.request.MilliValue() && rm.request.MilliValue() > 0 {
+			return color.RedString(resourceString(rm.utilization, rm.allocatable, rm.resourceType))
+		}
+	}
+	// If util is more than request, that's a problem
+	return color.WhiteString(resourceString(rm.utilization, rm.allocatable, rm.resourceType))
 }
 
 func resourceString(actual, allocatable resource.Quantity, resourceType string) string {
